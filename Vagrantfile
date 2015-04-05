@@ -2,23 +2,24 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "mitchellh/boot2docker"
-  config.vm.network "private_network", ip: "192.168.50.4"
+  config.vm.box = "dduportal/boot2docker"
   config.vm.define "docker-host-vm" do |t|
   end
+  config.ssh.shell = "sh"
+  config.ssh.username = "docker"
 
-  config.vm.provider "virtualbox" do |v|
-    # On VirtualBox, we don't have guest additions or a functional vboxsf
-    # in TinyCore Linux, so tell Vagrant that so it can be smarter.
-    v.check_guest_additions = false
-    v.functional_vboxsf     = false
-  end
+  # Used on Vagrant >= 1.7.x to disable the ssh key regeneration
+  config.ssh.insert_key = false
 
-  # b2d doesn't support NFS
-  config.nfs.functional = false
+  # Expose the Docker ports (non secured AND secured)
+  config.vm.network "forwarded_port", guest: 2375, host: 2375, host_ip: "127.0.0.1", auto_correct: true, id: "docker"
+  config.vm.network "forwarded_port", guest: 2376, host: 2376, host_ip: "127.0.0.1", auto_correct: true, id: "docker-ssl"
 
-  # b2d doesn't persist filesystem between reboots
-  if config.ssh.respond_to?(:insert_key)
-    config.ssh.insert_key = false
+  # Create a private network for accessing VM without NAT
+  config.vm.network "private_network", ip: "192.168.50.4", id: "default-network"
+
+  # Add bootlocal support
+  if File.file?('./bootlocal.sh')
+    config.vm.provision "shell", path: "bootlocal.sh", run: "always"
   end
 end
